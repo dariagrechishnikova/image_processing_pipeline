@@ -85,7 +85,7 @@ class parser_imseg():
 
 
 class data_provider_imseg():
-  def __init__(self, input_data_path, input_label_path, input_img_size, input_class_count, input_buffer_size, input_batch_size, input_parser):
+  def __init__(self, input_data_path, input_label_path, input_img_size, input_class_count, input_buffer_size, input_batch_size, input_parser, input_augmentor):
       self.path_image = input_data_path
       self.path_mask = input_label_path
       self.img_size = input_img_size
@@ -93,15 +93,14 @@ class data_provider_imseg():
       self.buffer_size = input_buffer_size
       self.batch_size = input_batch_size
       self.parser = input_parser
-
+      self.augmentor = input_augmentor
 
   def configure_train_ds(self, train_images_ds):
-    augmentor = augmentor_imseg()
     train_batches = (
         train_images_ds
         .cache()
         .shuffle(self.buffer_size)
-        .map(augmentor.tf_augment)
+        .map(self.augmentor.tf_augment)
         .batch(self.batch_size)
         .repeat()
         .prefetch(buffer_size=tf.data.AUTOTUNE))
@@ -173,9 +172,9 @@ def plot_n_elements(ds,n):
   for images, masks in ds.take(n):
     sample_image, sample_mask = images[0], masks[0]
     #print('mask shape',masks.shape)
-    display([sample_image, sample_mask[:,:,0], sample_mask[:,:,1], sample_mask[:,:,2], sample_mask[:,:,3]])
+    display([sample_image, sample_mask[:,:,0]])
   return
-
+#, sample_mask[:,:,1], sample_mask[:,:,2], sample_mask[:,:,3]
 #plot_n_elements(data,2)
 
 
@@ -215,3 +214,29 @@ class parser_imseg_one_class():
     mask = self.create_masks(mask)
     return mask
 
+class augmentor_imseg_one_class():
+  def __init__(self):
+    self.transforms = A.Compose([
+                                 A.HorizontalFlip(p=0.5),
+                                 A.VerticalFlip(p=0.5),
+                                 A.RandomRotate90(p=0.5),
+                                 A.Transpose(p=0.5),
+                                 
+                                 ])
+
+  def aug_fn(self, image, mask):
+    masks = [mask[:,:,0]]
+    transformed = self.transforms(image=image, masks=masks)
+    transformed_image = transformed['image']
+    transformed_masks = transformed['masks']
+    transformed_masks = np.stack(transformed_masks,  axis=-1)
+    return transformed_image, transformed_masks
+
+  def tf_augment(self, image, mask):
+    im_shape = image.shape
+    msk_shape = mask.shape
+    #print(f"Inside tf_aug_fn: image.shape = {image.shape}, mask.shape = {mask.shape}")
+    [aug_image, aug_mask] = tf.numpy_function(self.aug_fn, [image, mask], [tf.float32, tf.float32])
+    aug_image.set_shape(im_shape)
+    aug_mask.set_shape(msk_shape)
+    return aug_image, aug_mask
