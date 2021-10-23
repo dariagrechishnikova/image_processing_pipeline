@@ -172,9 +172,9 @@ def plot_n_elements(ds,n):
   for images, masks in ds.take(n):
     sample_image, sample_mask = images[0], masks[0]
     #print('mask shape',masks.shape)
-    display([sample_image, sample_mask[:,:,0]])
+    display([sample_image, sample_mask[:,:,0], sample_mask[:,:,1], sample_mask[:,:,2], sample_mask[:,:,3]])
   return
-#, sample_mask[:,:,1], sample_mask[:,:,2], sample_mask[:,:,3]
+
 #plot_n_elements(data,2)
 
 
