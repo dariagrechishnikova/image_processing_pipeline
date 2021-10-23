@@ -109,8 +109,9 @@ def main_imseg(
   initial_parser_obj = initial_parser_imseg(data_path, label_path, class_count)
   splitter_obj = splitter_imseg(test_size, val_size, seed, cv_folds, tr_val_split_file, test_file)
   model = model_obj.build_model()
+  image_parser_obj = parser_imseg(data_path, label_path, img_size, class_count)
   data_provider_obj = data_provider_imseg(data_path, label_path, img_size, 
-                                          class_count, buffer_size, batch_size)
+                                          class_count, buffer_size, batch_size, image_parser_obj)
   trainer_obj = trainer_imseg(model, optimizer, loss, metrics,
                batch_size, epochs, callbacks, log_name, net_info_path, model_checkpoints_path)
   
@@ -164,8 +165,9 @@ def main_imseg_binary_from_multiclass_cl1(
   splitter_parent_obj = splitter_imseg(test_size, val_size, seed, cv_folds, tr_val_split_file, test_file)
   splitter_obj = splitter_imseg_binary_from_multiclass(splitter_parent_obj, initial_parser_obj, class_num)
   model = model_obj.build_model()
+  image_parser_obj = parser_imseg_one_class(data_path, label_path, img_size, class_count, class_num)
   data_provider_obj = data_provider_imseg(data_path, label_path, img_size, 
-                                          class_count, buffer_size, batch_size)
+                                          class_count, buffer_size, batch_size, image_parser_obj)
   trainer_obj = trainer_imseg(model, optimizer, loss, metrics,
                batch_size, epochs, callbacks, log_name, net_info_path, model_checkpoints_path)
   
