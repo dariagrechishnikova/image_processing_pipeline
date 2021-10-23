@@ -197,7 +197,7 @@ class parser_imseg_one_class():
 
   def create_masks(self, mask):
     msk_shape = mask.shape
-    mask = tf.numpy_function(convert_mask_to_confidence_tensor, [mask], np.float32)
+    mask = tf.numpy_function(self.convert_mask_to_confidence_tensor, [mask], np.float32)
     mask.set_shape(msk_shape)
     return mask
 
