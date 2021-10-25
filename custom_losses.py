@@ -93,3 +93,12 @@ def iou_fn_loss(y_true, y_pred):
     weights = [0,1,1/4,1/10]
     iou_weighted = iou * weights
     return -tf.reduce_sum(iou_weighted, axis = [0,1])
+
+
+def iou_loss(y_true, y_pred):
+    n_classes = y_pred.shape[-1]
+    intersection = tf.reduce_sum(y_true * y_pred, [1,2])
+    all_true = tf.reduce_sum(y_true, [1,2])
+    all_pred = tf.reduce_sum(y_pred, [1,2])
+    iou = ((intersection + 1) / (all_true + all_pred - intersection + 1))
+    return -tf.reduce_sum(iou, axis = [0,1])

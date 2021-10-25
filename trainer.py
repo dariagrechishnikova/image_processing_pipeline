@@ -66,7 +66,6 @@ class trainer_imseg():
     
 
   def train(self, train_data, val_data, train_len, val_len, fold_num):
-    print(train_len)
     epoch_steps, val_steps = self.steps_per_epoch_calc(train_len, val_len)
     self.current_model.compile(optimizer=self.optimizer, loss=self.loss, metrics = self.metrics)
     history = self.current_model.fit(train_data,
