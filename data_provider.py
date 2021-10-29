@@ -66,7 +66,7 @@ class parser_imseg():
   def parse_image(self, filename):
     image = tf.io.read_file(self.path_image + filename)
     image = tf.image.decode_png(image, channels=3)
-    image = tf.image.per_image_standardization(image)
+    image = image/255
     image = tf.image.resize(image, [self.img_size, self.img_size])
     return image
 
@@ -131,16 +131,20 @@ class augmentor_imseg():
                                  A.VerticalFlip(p=0.5),
                                  A.RandomRotate90(p=0.5),
                                  A.Transpose(p=0.5),
-                                 
+                                 A.CLAHE(p=1),
                                  ])
 
   def aug_fn(self, image, mask):
     masks = [mask[:,:,0], mask[:,:,1], mask[:,:,2], mask[:,:,3]]
+    image = image*255
+    image = image.astype(np.uint8)
     transformed = self.transforms(image=image, masks=masks)
     transformed_image = transformed['image']
     transformed_masks = transformed['masks']
     transformed_masks = np.stack(transformed_masks,  axis=-1)
-    return transformed_image, transformed_masks
+    output_image = transformed_image/255
+    output_image.astype(np.float32)
+    return output_image, transformed_masks
 
   def tf_augment(self, image, mask):
     im_shape = image.shape
@@ -172,7 +176,9 @@ def plot_n_elements(ds,n):
   for images, masks in ds.take(n):
     sample_image, sample_mask = images[0], masks[0]
     #print('mask shape',masks.shape)
-    display([sample_image, sample_mask[:,:,0], sample_mask[:,:,1], sample_mask[:,:,2], sample_mask[:,:,3]])
+    print(sample_image)
+    display([sample_image, sample_mask[:,:,0]])
+    #display([sample_image, sample_mask[:,:,0], sample_mask[:,:,1], sample_mask[:,:,2], sample_mask[:,:,3]])
   return
 
 #plot_n_elements(data,2)
@@ -203,7 +209,7 @@ class parser_imseg_one_class():
   def parse_image(self, filename):
     image = tf.io.read_file(self.path_image + filename)
     image = tf.image.decode_png(image, channels=3)
-    image = tf.image.per_image_standardization(image)
+    image = image / 255
     image = tf.image.resize(image, [self.img_size, self.img_size])
     return image
 
@@ -221,16 +227,20 @@ class augmentor_imseg_one_class():
                                  A.VerticalFlip(p=0.5),
                                  A.RandomRotate90(p=0.5),
                                  A.Transpose(p=0.5),
-                                 
+                                 A.CLAHE(p=1),
                                  ])
 
   def aug_fn(self, image, mask):
     masks = [mask[:,:,0]]
+    image = image*255
+    image = image.astype(np.uint8)
     transformed = self.transforms(image=image, masks=masks)
     transformed_image = transformed['image']
     transformed_masks = transformed['masks']
     transformed_masks = np.stack(transformed_masks,  axis=-1)
-    return transformed_image, transformed_masks
+    output_image = transformed_image/255
+    output_image = output_image.astype(np.float32)
+    return output_image, transformed_masks
 
   def tf_augment(self, image, mask):
     im_shape = image.shape

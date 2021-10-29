@@ -107,9 +107,9 @@ class splitter_imseg_binary_from_multiclass():
   def get_split(self, item_list):
     train_ds, train_lbls, test_ds, test_lbls = self.parent_splitter.train_test_split(item_list)
     ds = self.filenames_per_class(train_ds, train_lbls)
-    folds_out = train_test_split(ds, test_size=0.2, random_state=self.parent_splitter.seed)
+    folds_out = [train_test_split(ds, test_size=0.2, random_state=self.parent_splitter.seed)]
     with open(self.parent_splitter.tr_val_split_file, 'wb') as f:
       pickle.dump(folds_out, f)
     with open(self.parent_splitter.test_file, 'wb') as f:
       pickle.dump(test_ds, f)
-    return [folds_out], test_ds
+    return folds_out, test_ds
