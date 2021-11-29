@@ -77,3 +77,4 @@ class trainer_imseg():
           ModelCheckpoint(monitor='val_loss', filepath=Path(self.model_checkpoints_path, f"model_{self.log_name}_fold_{fold_num}.hdf5"), save_best_only=True),
           ] + self.custom_callbacks)
     return
+

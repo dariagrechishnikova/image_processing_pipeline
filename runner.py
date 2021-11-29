@@ -58,6 +58,6 @@ def train_looper(train_val_splits,data_provider_obj, trainer_obj):
   for train, val in train_val_splits:
     train_data = data_provider_obj.get_train_tfset(train)
     val_data = data_provider_obj.get_val_tfset(val)
-    #plot_n_elements(val_data,15)
+    #plot_n_elements(train_data,10)
     trainer_obj.train(train_data, val_data, len(train), len(val), fold_num)
     fold_num += 1

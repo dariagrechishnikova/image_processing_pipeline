@@ -30,6 +30,7 @@ import numpy as np
 from keras.models import Model
 from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D
 from keras.layers import BatchNormalization
+from keras.layers import Add
 from keras.layers.core import SpatialDropout2D, Activation
 from tensorflow.keras.applications import EfficientNetB0
 from keras import backend as K
@@ -64,6 +65,30 @@ class seresnext50_bb_unet():
       sm.framework()
       keras.backend.set_image_data_format('channels_last')
       model = sm.Unet('seresnext50', classes=self.output_mask_channels, activation='sigmoid', encoder_weights='imagenet')
+      return model
+
+
+class vgg16_bb_unet():
+    def __init__(self, output_mask_channels):
+      self.output_mask_channels = output_mask_channels
+
+    def build_model(self):
+      sm.set_framework('tf.keras')
+      sm.framework()
+      keras.backend.set_image_data_format('channels_last')
+      model = sm.Unet('vgg16', classes=self.output_mask_channels, activation='sigmoid', encoder_weights='imagenet')
+      return model
+
+
+class fpn_bb_unet():
+    def __init__(self, output_mask_channels):
+      self.output_mask_channels = output_mask_channels
+
+    def build_model(self):
+      sm.set_framework('tf.keras')
+      sm.framework()
+      keras.backend.set_image_data_format('channels_last')
+      model = sm.FPN('densenet121', classes=self.output_mask_channels, activation='sigmoid', encoder_weights='imagenet')
       return model
 
 class ZF_UNET_224():
@@ -166,8 +191,8 @@ The key differences are:
   a larger number of filters is used in decoder.
 """
 
-
-def decoder_block_ternausV2(inputs, mid_channels, out_channels):
+class ternaus_net():
+  def decoder_block_ternausV2(self, inputs, mid_channels, out_channels):
     """
     Decoder block as proposed for TernausNet16 here: 
     https://arxiv.org/abs/1801.05746
@@ -179,24 +204,20 @@ def decoder_block_ternausV2(inputs, mid_channels, out_channels):
       deconvolution instead of bilinear upsampling. Omitted here because I 
       couldn't find a meaningful performance comparison
     """
-    
     conv_kwargs = dict(
-        activation='relu',
-        padding='same',
-        kernel_initializer='he_normal',
-        data_format='channels_last'  # (batch, height, width, channels)
-    )
-
+      activation='relu',
+      padding='same',
+      kernel_initializer='he_normal',
+      data_format='channels_last'  # (batch, height, width, channels)
+      )
+      
     x = UpSampling2D(size=(2, 2))(inputs) # interpolation='bilinear' doesn't work?
     x = Conv2D(mid_channels, 3, **conv_kwargs)(x)
     x = Conv2D(out_channels, 3, **conv_kwargs)(x)
     return x
-
-
-# INTENDED API
-# ------------------------------------------------------------------------------
-
-def ternausNet16(input_size=(256, 256, 3), output_channels=1):
+  
+  
+  def build_model(self, input_size=(256, 256, 3), output_channels=1):
     """
     A Keras implementation of TernausNet16: 
     https://arxiv.org/abs/1801.05746
@@ -241,19 +262,19 @@ def ternausNet16(input_size=(256, 256, 3), output_channels=1):
     # (None, 16, 16, 512)
     center = MaxPooling2D(pool_size=(2, 2))(e5)
     # (None, 8, 8, 512)
-    center = decoder_block_ternausV2(center, 512, 256)
+    center = self.decoder_block_ternausV2(center, 512, 256)
     # (None, 16, 16, 256)
     d5 = concatenate([e5, center], axis=3)
-    d5 = decoder_block_ternausV2(d5, 512, 256)
+    d5 = self.decoder_block_ternausV2(d5, 512, 256)
     # (None, 32, 32, 256)
     d4 = concatenate([e4, d5], axis=3)
-    d4 = decoder_block_ternausV2(d4, 512, 128)
+    d4 = self.decoder_block_ternausV2(d4, 512, 128)
     # (None, 64, 64, 128)
     d3 = concatenate([e3, d4], axis=3)
-    d3 = decoder_block_ternausV2(d3, 256, 64)
+    d3 = self.decoder_block_ternausV2(d3, 256, 64)
     # (None, 128, 128, 64)
     d2 = concatenate([e2, d3], axis=3)
-    d2 = decoder_block_ternausV2(d2, 128, 64)
+    d2 = self.decoder_block_ternausV2(d2, 128, 64)
     # (None, 256, 256, 64)
     # Note: no decoder block used at end
     d1 = concatenate([e1, d2], axis=3)
@@ -271,4 +292,141 @@ def ternausNet16(input_size=(256, 256, 3), output_channels=1):
 
     # Build
     model = Model(inputs=[inputs], outputs=[op])
+    print(model.summary())
     return model
+
+
+
+
+
+
+class simple_unet():
+  def build_model(self):
+    inputs = Input((224, 224, 3))
+
+    c1 = Conv2D(32, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (inputs)
+    c1 = BatchNormalization()(c1)
+    c1 = Dropout(0.1) (c1)
+    c1 = Conv2D(32, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c1)
+    c1 = BatchNormalization()(c1)
+    p1 = MaxPooling2D((2, 2)) (c1)
+
+    c2 = Conv2D(64, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (p1)
+    c2 = BatchNormalization()(c2)
+    c2 = Dropout(0.1) (c2)
+    c2 = Conv2D(64, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c2)
+    c2 = BatchNormalization()(c2)
+    p2 = MaxPooling2D((2, 2)) (c2)
+
+    c3 = Conv2D(128, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (p2)
+    c3 = BatchNormalization()(c3)
+    c3 = Dropout(0.2) (c3)
+    c3 = Conv2D(128, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c3)
+    c3 = BatchNormalization()(c3)
+    p3 = MaxPooling2D((2, 2)) (c3)
+
+    c4 = Conv2D(256, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (p3)
+    c4 = BatchNormalization()(c4)
+    c4 = Dropout(0.2) (c4)
+    c4 = Conv2D(256, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c4)
+    c4 = BatchNormalization()(c4)
+    p4 = MaxPooling2D(pool_size=(2, 2)) (c4)
+
+    c5 = Conv2D(512, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (p4)
+    c5 = BatchNormalization()(c5)
+    c5 = Dropout(0.3) (c5)
+    c5 = Conv2D(512, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c5)
+    c5 = BatchNormalization()(c5)
+
+    u6 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same') (c5)
+    u6 = concatenate([u6, c4])
+    c6 = Conv2D(256, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (u6)
+    c6 = BatchNormalization()(c6)
+    c6 = Dropout(0.2) (c6)
+    c6 = Conv2D(256, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c6)
+    c6 = BatchNormalization()(c6)
+
+    u7 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same') (c6)
+    u7 = concatenate([u7, c3])
+    c7 = Conv2D(128, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (u7)
+    c7 = BatchNormalization()(c7)
+    c7 = Dropout(0.2) (c7)
+    c7 = Conv2D(128, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c7)
+    c7 = BatchNormalization()(c7)
+
+    u8 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same') (c7)
+    u8 = concatenate([u8, c2])
+    c8 = Conv2D(64, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (u8)
+    c8 = BatchNormalization()(c8)
+    c8 = Dropout(0.1) (c8)
+    c8 = Conv2D(64, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c8)
+    c8 = BatchNormalization()(c8)
+
+    u9 = Conv2DTranspose(16, (2, 2), strides=(2, 2), padding='same') (c8)
+    u9 = concatenate([u9, c1], axis=3)
+    c9 = Conv2D(32, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (u9)
+    c9 = BatchNormalization()(c9)
+    c9 = Dropout(0.1) (c9)
+    c9 = Conv2D(32, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c9)
+    c9 = BatchNormalization()(c9)
+
+    outputs = Conv2D(1, (1, 1), activation='sigmoid') (c9)
+    model = Model(inputs, outputs)
+    return model
+
+
+
+
+class custom_fpn():
+  def build_model(self):
+    inputs = Input((224, 224, 3))
+
+    c1 = Conv2D(32, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (inputs)
+    c1 = BatchNormalization()(c1)
+    p1 = MaxPooling2D((2, 2)) (c1)
+
+
+    c2 = Conv2D(64, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (p1)
+    c2 = BatchNormalization()(c2)
+    p2 = MaxPooling2D((2, 2)) (c2)
+
+
+    c3 = Conv2D(128, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (p2)
+    c3 = BatchNormalization()(c3)
+
+
+    u6 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same') (c3)
+    added6 = Add()([u6, c2])
+    u6 = BatchNormalization()(added6)
+
+
+    u7 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same') (u6)
+    u7 = BatchNormalization()(u7)
+
+    outputs = Conv2D(1, (1, 1), activation='sigmoid') (u7)
+    model = Model(inputs, outputs)
+    print(model.summary())
+    return model
+
+
+class custom_cnn():
+  def build_model(self):
+    inputs = Input((224, 224, 3))
+
+    c1 = Conv2D(32, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (inputs)
+    c1 = BatchNormalization()(c1)
+    c2 = Conv2D(64, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c1)
+    c2 = BatchNormalization()(c2)
+    c3 = Conv2D(128, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c2)
+    c3 = BatchNormalization()(c3)
+    c4 = Conv2D(256, (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (c3)
+    c4 = BatchNormalization()(c4)
+
+
+    outputs = Conv2D(1, (1, 1), activation='sigmoid') (c4)
+    model = Model(inputs, outputs)
+    return model
+   
+
+
+    

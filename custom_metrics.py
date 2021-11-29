@@ -55,11 +55,10 @@ def jacard_coef(y_true, y_pred):
     return (intersection + 1.0) / (K.sum(y_true_f) + K.sum(y_pred_f) - intersection + 1.0)
 
 
-def mean_iou(y_true, y_pred, weights = [1,1,1,1]):
+def mean_iou(y_true, y_pred):
     n_classes = y_pred.shape[-1]
     intersection = tf.reduce_sum(y_true * y_pred, [1,2])
     all_true = tf.reduce_sum(y_true, [1,2])
     all_pred = tf.reduce_sum(y_pred, [1,2])
     iou = (intersection + 1) / (all_true + all_pred - intersection + 1)
-    iou_weighted = iou * weights
-    return tf.reduce_mean(iou_weighted, axis = [0,1])
+    return tf.reduce_mean(iou, axis = [0,1])
